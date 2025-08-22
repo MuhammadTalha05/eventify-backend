@@ -32,7 +32,9 @@ app.get("/health", (_req, res) => {
 // Unhandle Error
 app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+if (process.env.ENV === "development"){
+  app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+}
 
 
 export default app;

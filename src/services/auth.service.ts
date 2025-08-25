@@ -47,11 +47,6 @@ export async function signup(fullName: string, email: string, phone: string, pas
 
 // Login with password Auth Service
 export async function signinWithPassword(email: string, password: string) {
-  // Validate inputs
-  if (!isEmail(email)) throw new Error("Invalid email format");
-  if (!password || password.length < 8) {
-    throw new Error("Password must be at least 8 characters long");
-  }
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new Error("User not found");
 

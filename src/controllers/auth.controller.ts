@@ -60,15 +60,16 @@ export async function verifyLoginController(req: Request, res: Response) {
     // Set cookies
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.ENV === "production",
-      sameSite: process.env.ENV === "production" ? "strict" : "lax",
+      secure: false,
+      // sameSite: process.env.ENV === "production" ? "strict" : "lax",
       maxAge: 15 * 60 * 1000, // 15 min
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.ENV === "production",
-      sameSite: process.env.ENV === "production" ? "strict" : "lax",
+      secure: false,
+      // secure: process.env.ENV === "production",
+      // sameSite: process.env.ENV === "production" ? "strict" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -138,15 +139,17 @@ export async function refreshAccessTokenController(req: Request, res: Response) 
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.ENV === "production",
-      sameSite: process.env.ENV === "production" ? "strict" : "lax",
+      secure: false,
+      // secure: process.env.ENV === "production",
+      // sameSite: process.env.ENV === "production" ? "strict" : "lax",
       maxAge: 15 * 60 * 1000, // 15 min
     });
 
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
-      secure: process.env.ENV === "production",
-      sameSite: process.env.ENV === "production" ? "strict" : "lax",
+      secure: false,
+      // secure: process.env.ENV === "production",
+      // sameSite: process.env.ENV === "production" ? "strict" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -171,14 +174,16 @@ export async function logoutController(req: AuthRequest, res: Response) {
     // Clear cookies
     res.clearCookie("accessToken", {
       httpOnly: true,
-      secure: process.env.ENV === "production",
-      sameSite: process.env.ENV === "production" ? "strict" : "lax",
+      secure: false,
+      // secure: process.env.ENV === "production",
+      // sameSite: process.env.ENV === "production" ? "strict" : "lax",
     });
 
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: process.env.ENV === "production",
-      sameSite: process.env.ENV === "production" ? "strict" : "lax",
+      secure: false,
+      // secure: process.env.ENV === "production",
+      // sameSite: process.env.ENV === "production" ? "strict" : "lax",
     });
 
     res.json({success:true, message: `${fullName} successfully logged out` });

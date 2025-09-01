@@ -4,9 +4,11 @@ import * as otpService from "./otp.service";
 import { isEmail, isStrongPassword ,isPhoneNumber } from "../utils/validation.util";
 import { signAccessToken, signRefreshToken , verifyRefreshToken, verifyPasswordResetToken, signPasswordResetToken } from "../utils/jwt.util";
 import { sendEmail } from "../utils/email.util";
+import { generateRandomPassword } from "../utils/generateRandomPassword.util";
 
 
 type UserRole = "SUPER_ADMIN" | "ORGANIZER" | "PARTICIPANT";
+
 
 // Signup Request Auth Service
 export async function signup(fullName: string, email: string, phone: string, password: string, role?: string) {
@@ -105,7 +107,7 @@ export async function requestPasswordReset(email: string) {
   const token = signPasswordResetToken({ sub: user.id });
 
   // Link with token in URL
-  const resetLink = `${process.env.CLIENT_URL}/api/auth/verify-reset?token=${token}`;
+  const resetLink = `${process.env.CLIENT_URL}/auth/reset?token=${token}`;
 
   // Send email
   await sendEmail(
@@ -191,4 +193,90 @@ export async function logout(userId: string) {
   await prisma.refreshToken.deleteMany({ where: { userId } });
 
   return { fullName: user.fullName };
+}
+
+// Create Account for User Service (Super Admin only)
+export async function createAccountForUser(
+  fullName: string,
+  email: string,
+  phone: string,
+  role: string,
+  requestingUser: { sub: string; role?: string }
+) {
+  // --- Authorization Check ---
+  if (requestingUser.role !== "SUPER_ADMIN") {
+    throw new Error("Forbidden: Only SUPER_ADMIN can create accounts for others");
+  }
+
+  // --- Validation ---
+  if (!isEmail(email)) {
+    throw new Error("Invalid email format");
+  }
+
+  if (!isPhoneNumber(phone)) {
+    throw new Error("Phone number must be in format +92XXXXXXXXXX or 03XXXXXXXXX");
+  }
+
+  const validRoles = ["SUPER_ADMIN", "ORGANIZER", "PARTICIPANT"];
+  if (!validRoles.includes(role)) {
+    throw new Error(`Invalid role. Must be one of: ${validRoles.join(", ")}`);
+  }
+
+  if (fullName.length < 2 || fullName.length > 150) {
+    throw new Error("Full name must be between 2 and 150 characters");
+  }
+
+  // --- Check for existing user ---
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new Error("Email already registered");
+  }
+
+  // --- Generate random password ---
+  const generatedPassword = generateRandomPassword();
+  const hashedPassword = await hashPassword(generatedPassword);
+
+  // --- Create user ---
+  const newUser = await prisma.user.create({
+    data: {
+      fullName,
+      email,
+      phone,
+      passwordHash: hashedPassword,
+      role: role as UserRole,
+    },
+  });
+
+  // --- Send email with credentials ---
+  try {
+    const subject = "Your New Account Credentials";
+    const text = `Hello ${fullName},\n\nYour account has been created by an admin.\n\nEmail: ${email}\nPassword: ${generatedPassword}\nRole: ${role}\n\nPlease change your password after first login.\n\nBest regards,\nThe Eventify Team`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Welcome to Eventify!</h2>
+        <p>Hello <strong>${fullName}</strong>,</p>
+        <p>Your account has been created by an administrator.</p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Password:</strong> ${generatedPassword}</p>
+          <p><strong>Role:</strong> ${role}</p>
+        </div>
+        <p style="color: #ff0000; font-weight: bold;">⚠️ Please change your password after first login for security.</p>
+        <p>Best regards,<br>The Eventify Team</p>
+      </div>
+    `;
+
+    await sendEmail(email, subject, text, html);
+  } catch (emailError) {
+    console.error("Failed to send welcome email:", emailError);
+  }
+
+  return {
+    userId: newUser.id,
+    email: newUser.email,
+    role: newUser.role,
+    fullName: newUser.fullName,
+    message: "Account created successfully. Credentials sent to user's email."
+  };
 }

@@ -7,6 +7,94 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model user {
+  id            String             @id @default(uuid())
+  fullName      String             @db.VarChar(150)
+  email         String             @unique @db.VarChar(255)
+  phone         String             @db.VarChar(20)
+  passwordHash  String?
+  role          userRole           @default(PARTICIPANT)
+  avatarUrl     String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  createdEvents event[]            @relation("EventCreatedBy")
+  participants  eventParticipant[]
+  otpRequests   otpRequest[]
+  refreshToken  refreshToken?      @relation("UserRefreshTokens")
+}
+
+model event {
+  id                    String             @id @default(uuid())
+  title                 String             @db.VarChar(200)
+  description           String
+  totalSeats            Int?
+  confirmedParticipants Int                @default(0)
+  type                  eventType
+  venue                 String?
+  joinLink              String?
+  startTime             DateTime
+  endTime               DateTime
+  featuredImage         String
+  contactEmail          String             @db.VarChar(255)
+  contactPhone          String             @db.VarChar(20)
+  status                eventStatus        @default(ACTIVE)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  createdById           String
+  createdBy             user               @relation("EventCreatedBy", fields: [createdById], references: [id])
+  attachments           eventAttachment[]
+  hosts                 eventHost[]
+  participants          eventParticipant[]
+}
+
+model eventHost {
+  id      String   @id @default(uuid())
+  eventId String
+  email   String   @db.VarChar(255)
+  addedAt DateTime @default(now())
+  event   event    @relation(fields: [eventId], references: [id])
+}
+
+model eventAttachment {
+  id         String   @id @default(uuid())
+  eventId    String
+  fileUrl    String
+  fileType   String   @db.VarChar(50)
+  uploadedAt DateTime @default(now())
+  event      event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model eventParticipant {
+  id       String            @id @default(uuid())
+  eventId  String
+  userId   String
+  status   participantStatus @default(PENDING)
+  joinedAt DateTime          @default(now())
+  event    event             @relation(fields: [eventId], references: [id])
+  user     user              @relation(fields: [userId], references: [id])
+}
+
+model otpRequest {
+  id        String     @id @default(uuid())
+  userId    String
+  otpCode   String     @db.VarChar(6)
+  purpose   otpPurpose
+  expiresAt DateTime
+  used      Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  user      user       @relation(fields: [userId], references: [id])
+}
+
+model refreshToken {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  user      user     @relation("UserRefreshTokens", fields: [userId], references: [id])
+}
+
 enum userRole {
   SUPER_ADMIN
   ORGANIZER
@@ -32,100 +120,4 @@ enum participantStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-model user {
-  id            String            @id @default(uuid())
-  fullName      String            @db.VarChar(150)
-  email         String            @unique @db.VarChar(255)
-  phone         String            @db.VarChar(20)
-  passwordHash  String?
-  role          userRole          @default(PARTICIPANT)
-  avatarUrl     String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  // relation to events the user created (main host / organizer)
-  createdEvents event[]           @relation("EventCreatedBy")
-  participants  eventParticipant[]
-  otpRequests   otpRequest[]
-  refreshToken  refreshToken?  @relation("UserRefreshTokens")
-}
-
-model event {
-  id                    String              @id @default(uuid())
-  title                 String              @db.VarChar(200)
-  description           String
-  totalSeats            Int?
-  confirmedParticipants Int                 @default(0)
-  type                  eventType
-  venue                 String?
-  joinLink              String?
-  startTime             DateTime
-  endTime               DateTime
-  featuredImage         String
-  contactEmail          String              @db.VarChar(255)
-  contactPhone          String              @db.VarChar(20)
-  status                eventStatus         @default(ACTIVE)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-
-  createdById           String
-  createdBy             user                @relation("EventCreatedBy", fields: [createdById], references: [id])
-
-  hosts                 eventHost[]
-  attachments           eventAttachment[]
-  participants          eventParticipant[]
-}
-
-model eventHost {
-  id        String   @id @default(uuid())
-  eventId   String
-  email     String   @db.VarChar(255)
-  addedAt   DateTime @default(now())
-
-  event     event     @relation(fields: [eventId], references: [id])
-}
-
-model eventAttachment {
-  id          String   @id @default(uuid())
-  eventId     String
-  fileUrl     String
-  fileType    String   @db.VarChar(50)
-  uploadedAt  DateTime @default(now())
-
-  event event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-}
-
-model eventParticipant {
-  id          String             @id @default(uuid())
-  eventId     String
-  userId      String
-  status      participantStatus  @default(PENDING)
-  joinedAt    DateTime           @default(now())
-
-  event   event @relation(fields: [eventId], references: [id])
-  user    user  @relation(fields: [userId], references: [id])
-}
-
-model otpRequest {
-  id         String      @id @default(uuid())
-  userId     String
-  otpCode    String      @db.VarChar(6)
-  purpose    otpPurpose
-  expiresAt  DateTime
-  used       Boolean     @default(false)
-  createdAt  DateTime    @default(now())
-
-  user user @relation(fields: [userId], references: [id])
-}
-
-model refreshToken {
-  id        String   @id @default(cuid())
-  user      user     @relation("UserRefreshTokens", fields: [userId], references: [id])
-  userId    String   @unique
-  token     String   @unique
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  revoked   Boolean  @default(false)
 }

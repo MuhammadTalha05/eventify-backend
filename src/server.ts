@@ -13,13 +13,16 @@ import { setupSwagger } from "./config/swagger.config";
 
 dotenv.config();
 const PORT = process.env.PORT
+const CLIENT = process.env.CLIENT_URL
 
 const app = express();
 app.use(express.json());
-app.use(cors({
-  origin: "http://localhost:3000", // your frontend URL
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: CLIENT || "http://localhost:3000",
+    credentials: true, // allow cookies
+  })
+);
 app.use(cookieParser());
 app.use(morgan("dev"));
 

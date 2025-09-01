@@ -1,5 +1,5 @@
 // Helper function to generate random password
-export function generateRandomPassword(length: number = 12): string {
+export function generateRandomPassword(length = 12): string {
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
   let password = "";
   

@@ -3,6 +3,7 @@ import { isPhoneNumber, isStrongPassword } from "../utils/validation.util";
 import { hashPassword, comparePassword } from "../utils/hash.util";
 import { GetAllOptions } from "../types/event.type";
 
+
 // Get single user profile by ID
 export async function getUserProfile(userId: string) {
   const user = await prisma.user.findUnique({
@@ -162,4 +163,60 @@ export async function updateUserPassword(
   });
 
   return true;
+}
+
+
+// Deleet user service
+// Delete user service
+export async function deleteUser(userId: string) {
+  // First check if user exists
+  const userToDelete = await prisma.user.findUnique({
+    where: { id: userId }
+  });
+
+  if (!userToDelete) {
+    throw new Error("User not found");
+  }
+
+  // Use transaction to ensure all operations succeed or fail together
+  await prisma.$transaction(async (tx) => {
+    // 1. Delete user's participations in events
+    await tx.eventParticipant.deleteMany({ where: { userId } });
+    
+    // 2. Delete OTP requests
+    await tx.otpRequest.deleteMany({ where: { userId } });
+    
+    // 3. Delete refresh tokens
+    await tx.refreshToken.deleteMany({ where: { userId } });
+    
+    // 4. Remove user from event hosts (by email since eventHost stores emails)
+    await tx.eventHost.deleteMany({ where: { email: userToDelete.email } });
+    
+    // 5. Delete events created by this user (with all related data)
+    const eventsToDelete = await tx.event.findMany({
+      where: { createdById: userId },
+      select: { id: true }
+    });
+
+    for (const event of eventsToDelete) {
+      // Delete event-related data first
+      await tx.eventHost.deleteMany({ where: { eventId: event.id } });
+      await tx.eventParticipant.deleteMany({ where: { eventId: event.id } });
+      await tx.eventAttachment.deleteMany({ where: { eventId: event.id } });
+      
+      // Then delete the event
+      await tx.event.delete({ where: { id: event.id } });
+    }
+    
+    // 6. Finally delete the user
+    await tx.user.delete({ where: { id: userId } });
+  });
+
+  return {
+    id: userToDelete.id,
+    fullName: userToDelete.fullName,
+    email: userToDelete.email,
+    role: userToDelete.role,
+    message: "User and all associated data deleted successfully"
+  };
 }

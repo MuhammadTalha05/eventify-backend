@@ -2,6 +2,29 @@ import { Response } from "express";
 import * as userService from "../services/user.service";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
+
+// Get CUrrent User Deatils
+export async function getCurrentUserController(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const profile = await userService.getUserProfile(req.user.sub);
+
+    if (!profile) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    return res.json({ success: true, data: profile });
+  } catch (err: unknown) {
+    return res.status(500).json({
+      success: false,
+      error: err instanceof Error ? err.message : "An unknown error occurred",
+    });
+  }
+}
+
 // Get profile (self or by id if ORGANIZER)
 export async function getProfileController(req: AuthRequest, res: Response) {
   try {
@@ -46,6 +69,8 @@ export async function updateProfileController(req: AuthRequest, res: Response) {
       const file = req.file as Express.Multer.File;
       avatarUrl = file.path; 
     }
+
+    console.log(req.file)
 
     const updatedUser = await userService.updateUserProfile(req.user.sub, {
       fullName,
@@ -108,7 +133,7 @@ export async function changeUserRoleController(req: AuthRequest, res: Response) 
     }
 
     if (!["ORGANIZER", "PARTICIPANT"].includes(role)) {
-      return res.status(400).json({success: false, error: "Role must be either ORGANIZER or PARTICIPANT" });
+      return res.status(400).json({success: false, error: "Role must be either ORGANIZER, PARTICIPANT, SUPER_ADMIN" });
     }
 
     const updatedUser = await userService.changeUserRole(id, role as "ORGANIZER" | "PARTICIPANT");
@@ -144,6 +169,41 @@ export async function updatePasswordController(req: AuthRequest, res: Response) 
     return res.status(400).json({
       success: false,
       error: err instanceof Error ? err.message : "Something went wrong, please try again",
+    });
+  }
+}
+
+// Delete user controller
+export async function deleteUserController(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    if (req.user.role !== "SUPER_ADMIN") {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied. Only super admins can delete users.",
+      });
+    }
+
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, error: "User id is required" });
+    }
+
+    const deletedUser = await userService.deleteUser(id);
+
+    return res.json({
+      success: true,
+      message: "User deleted successfully",
+      user: deletedUser,
+    });
+  } catch (err: unknown) {
+    return res.status(400).json({
+      success: false,
+      error: err instanceof Error ? err.message : "An unknown error occurred",
     });
   }
 }

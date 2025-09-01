@@ -45,33 +45,46 @@ model user {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  hostedEvents  event[]           @relation("EventHosts")
+  // relation to events the user created (main host / organizer)
+  createdEvents event[]           @relation("EventCreatedBy")
   participants  eventParticipant[]
   otpRequests   otpRequest[]
   refreshToken  refreshToken?  @relation("UserRefreshTokens")
 }
 
 model event {
-  id                     String             @id @default(uuid())
-  title                  String             @db.VarChar(200)
-  description            String
-  totalSeats             Int?
-  confirmedParticipants  Int                @default(0)
-  type                   eventType
-  venue                  String?
-  joinLink               String?
-  startTime              DateTime
-  endTime                DateTime
-  featuredImage          String
-  contactEmail           String             @db.VarChar(255)
-  contactPhone           String             @db.VarChar(20)
-  status                 eventStatus        @default(ACTIVE)
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  id                    String              @id @default(uuid())
+  title                 String              @db.VarChar(200)
+  description           String
+  totalSeats            Int?
+  confirmedParticipants Int                 @default(0)
+  type                  eventType
+  venue                 String?
+  joinLink              String?
+  startTime             DateTime
+  endTime               DateTime
+  featuredImage         String
+  contactEmail          String              @db.VarChar(255)
+  contactPhone          String              @db.VarChar(20)
+  status                eventStatus         @default(ACTIVE)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
-  hosts                  user[]             @relation("EventHosts")
-  attachments            eventAttachment[]
-  participants           eventParticipant[]
+  createdById           String
+  createdBy             user                @relation("EventCreatedBy", fields: [createdById], references: [id])
+
+  hosts                 eventHost[]
+  attachments           eventAttachment[]
+  participants          eventParticipant[]
+}
+
+model eventHost {
+  id        String   @id @default(uuid())
+  eventId   String
+  email     String   @db.VarChar(255)
+  addedAt   DateTime @default(now())
+
+  event     event     @relation(fields: [eventId], references: [id])
 }
 
 model eventAttachment {

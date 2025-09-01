@@ -3,33 +3,38 @@ import * as eventService from "../services/event.service";
 import { CreateEvent } from "../types/event.type";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
+
 // Create Event Controller
 export async function createEventController(req: AuthRequest, res: Response) {
   try {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized"
+        message: "Unauthorized",
       });
     }
+
     if (req.user.role !== "ORGANIZER") {
       return res.status(403).json({
         success: false,
-        message: "Forbidden: Only organizer can create events"
+        message: "Forbidden: Only organizers can create events",
       });
     }
 
-    const hostId = req.user.sub;
+    const organizerId = req.user.sub;
     const body = req.body as CreateEvent;
-    const files = req.files as {
-      featuredImage?: Express.Multer.File[];
-      attachments?: Express.Multer.File[];
-    };
 
-    const featuredImage = files?.featuredImage?.[0] ?? null;
-    const attachments = files?.attachments ?? [];
+    // ✅ Now frontend sends URLs directly
+    const featuredImage = body.featuredImage ?? null;
+    const attachments = body.attachments ?? [];
 
-    const event = await eventService.createEvent(body, hostId, featuredImage, attachments);
+    // Pass URLs to service (no file handling anymore)
+    const event = await eventService.createEvent(
+      body,
+      organizerId,
+      featuredImage,
+      attachments
+    );
 
     return res.status(201).json({
       success: true,
@@ -39,7 +44,8 @@ export async function createEventController(req: AuthRequest, res: Response) {
   } catch (err: unknown) {
     return res.status(500).json({
       success: false,
-      message: err instanceof Error ? err.message : "An unexpected error occurred",
+      message:
+        err instanceof Error ? err.message : "An unexpected error occurred",
     });
   }
 }
@@ -53,15 +59,20 @@ export async function updateEventController(req: AuthRequest, res: Response) {
 
     const eventId = req.params.id;
     const userId = req.user.sub;
-    const files = req.files as {
-      featuredImage?: Express.Multer.File[];
-      attachments?: Express.Multer.File[];
-    };
 
-    const featuredImage = files?.featuredImage?.[0] ?? null;
-    const attachments = files?.attachments ?? [];
+    // ✅ Expect frontend to send URLs instead of files
+    const { featuredImage, attachments } = req.body;
 
-    const event = await eventService.updateEvent(eventId, userId, req.body, featuredImage, attachments);
+    // featuredImageUrl: string | null
+    // attachments: [{ url: string; type: "image" | "video" }]
+
+    const event = await eventService.updateEvent(
+      eventId,
+      userId,
+      req.body,                // other event fields (title, desc, etc.)
+      featuredImage || null, // ✅ pass URL instead of multer file
+      attachments || []         // ✅ pass array of { fileUrl, fileType }
+    );
 
     return res.status(200).json({
       success: true,
@@ -156,7 +167,7 @@ export async function getMyEventsController(req: AuthRequest, res: Response) {
   }
 }
 
-// Get All Eventa
+// Get All Eventa Controller
 export async function getAllEventsController(req: AuthRequest, res: Response) {
   try {
     const page = Number(req.query.page) || 1;

@@ -46,8 +46,19 @@ CREATE TABLE "event" (
     "status" "eventStatus" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdById" TEXT NOT NULL,
 
     CONSTRAINT "event_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "eventHost" (
+    "id" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
+    "email" VARCHAR(255) NOT NULL,
+    "addedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "eventHost_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -97,12 +108,6 @@ CREATE TABLE "refreshToken" (
     CONSTRAINT "refreshToken_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "_EventHosts" (
-    "A" TEXT NOT NULL,
-    "B" TEXT NOT NULL
-);
-
 -- CreateIndex
 CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
 
@@ -112,11 +117,11 @@ CREATE UNIQUE INDEX "refreshToken_userId_key" ON "refreshToken"("userId");
 -- CreateIndex
 CREATE UNIQUE INDEX "refreshToken_token_key" ON "refreshToken"("token");
 
--- CreateIndex
-CREATE UNIQUE INDEX "_EventHosts_AB_unique" ON "_EventHosts"("A", "B");
+-- AddForeignKey
+ALTER TABLE "event" ADD CONSTRAINT "event_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- CreateIndex
-CREATE INDEX "_EventHosts_B_index" ON "_EventHosts"("B");
+-- AddForeignKey
+ALTER TABLE "eventHost" ADD CONSTRAINT "eventHost_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "eventAttachment" ADD CONSTRAINT "eventAttachment_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -132,9 +137,3 @@ ALTER TABLE "otpRequest" ADD CONSTRAINT "otpRequest_userId_fkey" FOREIGN KEY ("u
 
 -- AddForeignKey
 ALTER TABLE "refreshToken" ADD CONSTRAINT "refreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "_EventHosts" ADD CONSTRAINT "_EventHosts_A_fkey" FOREIGN KEY ("A") REFERENCES "event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "_EventHosts" ADD CONSTRAINT "_EventHosts_B_fkey" FOREIGN KEY ("B") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;

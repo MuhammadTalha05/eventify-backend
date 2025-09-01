@@ -45,19 +45,34 @@ export async function joinEvent(userId: string, eventId: string) {
 }
 
 
-// Update Participent Status
+// Update Participant Status
 export async function updateParticipantStatus(
   eventId: string,
   participantId: string,
   status: "APPROVED" | "REJECTED",
   organizerId: string
 ) {
+  // First get the organizer's email for host verification
+  const organizer = await prisma.user.findUnique({
+    where: { id: organizerId },
+    select: { email: true }
+  });
+
+  if (!organizer) {
+    throw new Error("Organizer not found.");
+  }
+
+  // Check if current user is the event creator
+
   // Fetch participant with event + hosts
   const participant = await prisma.eventParticipant.findUnique({
     where: { id: participantId },
     include: {
       event: {
-        include: { hosts: { select: { id: true } } }, 
+        include: { 
+          hosts: true,
+          createdBy: true 
+        }, 
       },
       user: { select: { id: true, fullName: true, email: true } },
     },
@@ -68,13 +83,21 @@ export async function updateParticipantStatus(
   }
 
   const event = participant.event;
+  // Check if current user is the event creator
+
   if (!event || event.id !== eventId) {
     throw new Error("Participant does not belong to this event.");
   }
 
-  // Check if current user is host of this event
-  const isHost = event.hosts.some((host) => host.id === organizerId);
-  if (!isHost) {
+  if (event.createdById !== organizerId) {
+  throw new Error("You are not authorized to update participants of this event.");
+}
+
+  // Check if current user is event creator OR a host of this event
+  const isEventCreator = event.createdById === organizerId;
+  const isHost = event.hosts.some((host) => host.email === organizer.email);
+  
+  if (!isEventCreator && !isHost) {
     throw new Error("You are not authorized to update participants of this event.");
   }
 
@@ -92,25 +115,30 @@ export async function updateParticipantStatus(
     }
   }
 
-  // Update participant status
-  const updated = await prisma.eventParticipant.update({
-    where: { id: participantId },
-    data: { status },
-    include: {
-      user: { select: { id: true, fullName: true, email: true } },
-      event: { select: { id: true, title: true, type: true } },
-    },
+  // Update participant status using transaction
+  const updated = await prisma.$transaction(async (tx) => {
+    // Update participant status
+    const updatedParticipant = await tx.eventParticipant.update({
+      where: { id: participantId },
+      data: { status },
+      include: {
+        user: { select: { id: true, fullName: true, email: true } },
+        event: { select: { id: true, title: true, type: true } },
+      },
+    });
+
+    // If approved, increment confirmedParticipants
+    if (status === "APPROVED") {
+      await tx.event.update({
+        where: { id: event.id },
+        data: { confirmedParticipants: { increment: 1 } },
+      });
+    }
+
+    return updatedParticipant;
   });
 
-  // If approved, increment confirmedParticipants
-  if (status === "APPROVED") {
-    await prisma.event.update({
-      where: { id: event.id },
-      data: { confirmedParticipants: { increment: 1 } },
-    });
-  }
-
-//   Notify participent about their event
+  // Notify participant about their event status
   if (updated.user?.email) {
     const subject =
       status === "APPROVED"
@@ -180,7 +208,9 @@ export async function getParticpantAllEvents(
           description: true,
           startTime: true,
           endTime: true,
-          venue: true,
+          type:true,
+          joinLink:true,
+          venue:true,
           featuredImage: true,
           confirmedParticipants: true,
           totalSeats: true,

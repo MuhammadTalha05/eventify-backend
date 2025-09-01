@@ -190,3 +190,47 @@ export async function logoutController(req: AuthRequest, res: Response) {
     }
   }
 }
+
+
+// Create Account for Someone Else Controller (Super Admin only)
+export async function createAccountController(req: AuthRequest, res: Response) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const { email, role, fullName, phone } = req.body;
+
+    if (!email || !role || !fullName || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, role, fullName, and phone are required"
+      });
+    }
+
+    const result = await authService.createAccountForUser(
+      fullName,
+      email,
+      phone,
+      role,
+      req.user
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Account created successfully. Password sent to user's email.",
+      data: result
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      return res.status(400).json({ 
+        success: false, 
+        message: err.message 
+      });
+    }
+    return res.status(500).json({ 
+      success: false, 
+      message: "Internal server error" 
+    });
+  }
+}

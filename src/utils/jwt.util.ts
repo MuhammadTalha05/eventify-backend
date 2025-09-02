@@ -33,7 +33,7 @@ function parseExpiresIn(ttl: string | undefined, fallback: string): SignOptions[
 
 // Sign Access Token
 export function signAccessToken(payload: Record<string, unknown>) {
-  const options: SignOptions = { expiresIn: parseExpiresIn(JWT_ACCESS_TTL, "15m") };
+  const options: SignOptions = { expiresIn: parseExpiresIn(JWT_ACCESS_TTL, "6h") };
   return jwt.sign(payload, accessSecret, options);
 }
 

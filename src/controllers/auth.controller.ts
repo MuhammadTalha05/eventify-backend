@@ -62,14 +62,14 @@ export async function verifyLoginController(req: Request, res: Response) {
       httpOnly: true,
       secure: process.env.ENV === "production",
       sameSite: process.env.ENV === "production" ? "none" : "lax",
-      maxAge: 15 * 60 * 1000, // 15 min
+      maxAge: 6 * 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.ENV === "production",
       sameSite: process.env.ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return res.json({
@@ -140,7 +140,7 @@ export async function refreshAccessTokenController(req: Request, res: Response) 
       httpOnly: true,
       secure: process.env.ENV === "production",
       sameSite: process.env.ENV === "production" ? "none" : "lax",
-      maxAge: 15 * 60 * 1000, // 15 min
+      maxAge: 6 * 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", newRefreshToken, {
